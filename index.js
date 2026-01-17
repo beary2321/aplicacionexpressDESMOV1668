@@ -32,45 +32,38 @@ let db = new sqlite3.Database('./base.sqlite3', (err) => {
 });
 
 //Creamos un endpoint de login que recibe los datos como json
-app.post('/insert', jsonParser, function (req, res) {
-    //Imprimimos el contenido del campo todo
-    const { todo } = req.body;
-   
-    console.log(todo);
-    res.setHeader('Content-Type', 'application/json');
-    
+app.post('/insert', jsonParser, (req, res) => {
+  const { todo } = req.body;
 
-    if (!todo) {
-        res.status(400).send('Falta información necesaria');
-        return;
+  if (!todo) {
+    return res.status(400).json({ error: 'Falta el campo todo' });
+  }
+
+  const stmt = db.prepare(
+    'INSERT INTO todos (todo, created_at) VALUES (?, CURRENT_TIMESTAMP)'
+  );
+
+  stmt.run(todo, function (err) {
+    if (err) {
+      console.error(err.message);
+      return res.status(500).json({ error: 'Error al insertar' });
     }
-    const stmt  =  db.prepare('INSERT INTO todos (todo, created_at) VALUES (?, CURRENT_TIMESTAMP)');
 
-    stmt.run(todo, (err) => {
-        if (err) {
-          console.error("Error running stmt:", err);
-          res.status(500).send(err);
-          return;
-
-        } else {
-          console.log("Insert was successful!");
-        }
+    res.status(201).json({
+      mensaje: 'Tarea guardada correctamente',
+      id: this.lastID
     });
+  });
 
-    stmt.finalize();
+  stmt.finalize();
+
+
     
-    //Enviamos de regreso la respuesta
-    res.setHeader('Content-Type', 'application/json');
-    res.status(201).send();
+  
 })
 
 
 
-app.get('/', function (req, res) {
-    //Enviamos de regreso la respuesta
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ 'status': 'ok2' }));
-})
 
 
 //Creamos un endpoint de login que recibe los datos como json
@@ -86,6 +79,64 @@ app.post('/login', jsonParser, function (req, res) {
 //Corremos el servidor en el puerto 3000
 const port = 3000;
 
+
+// Para recibir datos de formularios HTML
+
+
+app.post('/agrega_todo', jsonParser, (req, res) => {
+    const { todo } = req.body;
+
+    if (!todo) {
+        res.status(400).json({ error: 'Falta el campo "todo"' });
+        return;
+    }
+
+    const stmt = db.prepare('INSERT INTO todos (todo, created_at) VALUES (?, CURRENT_TIMESTAMP)');
+    stmt.run(todo, function(err) {
+        if (err) {
+            console.error('Error al insertar:', err.message);
+            res.status(500).json({ error: 'Error al insertar en la base de datos' });
+            return;
+        }
+
+        console.log(`Tarea nueva agregada: ${todo}`);
+
+        // Consultamos toda la tabla después de insertar
+        db.all('SELECT * FROM todos ORDER BY id', (err, rows) => {
+            if (err) {
+                console.error('Error al consultar la tabla:', err.message);
+                res.status(500).json({ error: 'Error al consultar la base de datos' });
+                return;
+            }
+
+            // Respuesta JSON con estado HTTP 201
+            res.status(201).json({
+                status: 201,
+                mensaje: 'Tarea nueva agregada correctamente',
+                todos: rows
+            });
+        });
+
+    });
+    stmt.finalize();
+});
+
+// Endpoint para obtener todas las tareas
+app.get('/todos', (req, res) => {
+  db.all('SELECT * FROM todos ORDER BY id', (err, rows) => {
+    if (err) {
+      console.error(err.message);
+      return res.status(500).json({ error: 'Error al consultar la base de datos' });
+    }
+
+    res.json(rows);
+  });
+});
+
+
+
+
 app.listen(port, () => {
     console.log(`Aplicación corriendo en http://localhost:${port}`)
 })
+
