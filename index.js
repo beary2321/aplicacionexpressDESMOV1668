@@ -77,7 +77,7 @@ app.post('/login', jsonParser, function (req, res) {
 })
 
 //Corremos el servidor en el puerto 3000
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 
 // Para recibir datos de formularios HTML
